@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "docdrift"
+version = "0.1.0"
+description = "Multi-agent system that keeps documentation in sync with code"
+authors = [{ name = "Thiraviam" }]
+requires-python = ">=3.10"
+dependencies = [
+  "langgraph>=0.2",
+  "anthropic>=0.40",
+  "pydantic>=2.6",
+  "rank_bm25>=0.2.2",
+  "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.2"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+docdrift = "docdrift.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["docdrift*"]

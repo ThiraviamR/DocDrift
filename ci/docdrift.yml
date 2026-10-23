@@ -1,0 +1,44 @@
+# Copy this workflow into the repo whose docs DocDrift should guard.
+# On every push to main it checks the pushed range and opens a docs PR if anything went stale.
+name: DocDrift
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  docdrift:
+    # Don't react to DocDrift's own merged PRs (they only touch docs anyway, so this is belt-and-braces)
+    if: "!contains(github.event.head_commit.message, '[docdrift]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install DocDrift
+        run: pip install "git+https://github.com/${{ vars.DOCDRIFT_REPO || 'YOUR_GH_USER/DocDrift' }}.git"
+
+      - name: Run DocDrift
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python -m docdrift run --repo . \
+            --base "${{ github.event.before }}" --head "${{ github.sha }}" \
+            --mode pr --base-branch main || true
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docdrift-report
+          path: .docdrift/out/
