@@ -1,6 +1,6 @@
 # DocDrift: Demo Day runbook
 
-Live Demo Day: **Oct 24**. Deck and PPT due: **Oct 22**. Talk limit: **under 10 minutes**.
+Live Demo Day: **Oct 24**. Deck and PPT due: **Oct 22**. Talk limit: **under 10 minutes** (timing below adds to about 9:45, so keep the demo tight).
 
 ## 1. Before the day (do these once)
 
@@ -9,8 +9,8 @@ Live Demo Day: **Oct 24**. Deck and PPT due: **Oct 22**. Talk limit: **under 10 
 - [ ] `python -m docdrift demo` with Claude and confirm 7 fixed, 0 need human. If the model ID is rejected, set `DOCDRIFT_MODEL` to a current Claude model
 - [ ] Note the live-Claude run time and the number of LLM calls (both are in the report footer). Add them to the Results slide if you want
 - [ ] Note anything that broke in the live run and add it to the "What broke" slide notes
-- [ ] `python -m pytest -q` shows 9 passed
-- [ ] Push to GitHub (`git init`, commit, push) and put the link on the closing slide
+- [ ] `python -m pytest -q` shows 16 passed
+- [ ] Make https://github.com/ThiraviamR/DocDrift public (Settings → Danger Zone → Change visibility) so reviewers can open it
 - [ ] Optional wow moment: on a test GitHub repo, run `--mode pr` once and screenshot the PR
 - [ ] Record the 3-minute video (script in section 5)
 - [ ] Share the deck from its Share menu if reviewers need the link
@@ -18,7 +18,7 @@ Live Demo Day: **Oct 24**. Deck and PPT due: **Oct 22**. Talk limit: **under 10 
 ## 2. On the day: setup (5 minutes before)
 
 ```bash
-cd ~/Documents/Claude/Projects/Joinloop-Capstone/DocDrift
+cd ~/Documents/GitHub/JoinLoop/DocDrift
 rm -rf demo_repo            # clean slate
 clear
 ```
@@ -27,7 +27,7 @@ clear
 - Have two tabs ready: tab 1 for running the demo, tab 2 already `cd`'d into the folder with `--mock` typed but not run (your fallback)
 - Turn off notifications
 
-## 3. Talk timing (aim for 9 minutes)
+## 3. Talk timing (about 9:45 in total)
 
 | Slide | Time | Key line |
 |---|---|---|
@@ -37,15 +37,15 @@ clear
 | 4 What it does | 0:20 | "A human still merges." |
 | 5 Architecture | 1:00 | "Code analysis is the source of truth. The AI can't invent changes." |
 | 6 Handoffs | 0:40 | "Typed forms, not chat. Claude answers through a schema." |
-| 7 **Live demo** | 2:30 | Section 4 below |
-| 8 Results | 0:30 | "7 of 7 fixed, and the trap left alone." |
+| 7 **Live demo** | 2:20 | Section 4 below |
+| 8 Results | 0:40 | "7 of 7 fixed. Nine scenarios, five of them unhappy paths, all pass." |
 | 9 Memory | 0:40 | "Memory lives in the repo, so it's versioned and reviewable." |
 | 10 Guardrails | 0:50 | "The rules hold whatever the model says." |
 | 11 What broke | 0:45 | "The checker shared the fixer's blind spot." |
 | 12 Retro | 0:30 | One honest point |
 | 13 Close | 0:15 | Questions |
 
-## 4. The live demo (2.5 minutes)
+## 4. The live demo (2 minutes 20 seconds)
 
 **Set the scene (20 seconds):**
 "This is an Inventory API with a README, API guide and runbook. A developer just merged a change: `/v1/stock` is now `/v1/inventory`, `limit` is now `page_size` with a default of 50, `ttl_minutes` is now `hold_minutes`, and the database environment variable was renamed. Nobody touched the docs."

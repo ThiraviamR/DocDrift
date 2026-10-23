@@ -1,12 +1,14 @@
 """Publisher: applies verified patches and ships them.
 
 Modes
-- dry-run : write report + unified patch to --out; repo untouched (default, demo-safe)
+- dry-run : write report + unified patch to --out; docs untouched (default, demo-safe).
+            DocDrift's own files (report, memory) are written under <repo>/.docdrift/
 - apply   : write fixed docs into the working tree
 - branch  : commit to docdrift/<sha> via a temporary git worktree (your checkout is untouched)
 - pr      : branch + push + open a GitHub PR (needs GITHUB_TOKEN and a github.com origin)
 
-Never merges. Never touches non-markdown files (guardrails.path_allowed).
+Never merges. Never edits non-markdown files (guardrails.path_allowed); the only other file it
+writes is its own memory, .docdrift/memory.json, which branch/pr mode commits alongside the docs.
 """
 from __future__ import annotations
 
@@ -98,7 +100,14 @@ def report_md(ctx: RunContext, state: DriftState, patch: str) -> str:
         L += ["", "</details>"]
     if patch:
         L += ["", "<details><summary>Diff</summary>", "", "```diff", patch.rstrip(), "```", "", "</details>"]
-    L += ["", f"_LLM calls: {ctx.llm.calls} · mode: {'claude' if ctx.llm.available else 'deterministic'} · "
+    elapsed = (ctx.events[-1]["t"] if ctx.events else 0)
+    llm = ctx.llm
+    off = getattr(llm, "disabled_reason", None)
+    mode_s = ("deterministic (Claude disabled: " + off.split(":")[0] + ")" if off
+              else "claude" if llm.available else "deterministic")
+    tok = f"{getattr(llm, 'input_tokens', 0)}/{getattr(llm, 'output_tokens', 0)}"
+    L += ["", f"_LLM calls: {llm.calls} · tokens in/out: {tok} · "
+              f"time: {elapsed:.1f}s · mode: {mode_s} · "
               "DocDrift never merges; review and merge this PR yourself._"]
     return "\n".join(L)
 
@@ -162,10 +171,14 @@ def publish(ctx: RunContext, state: DriftState, mode: str, out_dir: Path, base_b
                 if not gh or not os.getenv("GITHUB_TOKEN"):
                     ctx.emit(AGENT, "No github.com origin or GITHUB_TOKEN; stopping at branch")
                 else:
-                    g.git(wt, "push", "-q", "-f", "origin", branch)
-                    base_b = base_branch or os.getenv("DOCDRIFT_BASE_BRANCH", "main")
-                    result["pr_url"] = _open_pr(*gh, branch, base_b, f"docs: DocDrift sync for {ctx.head[:7]}", body)
-                    ctx.emit(AGENT, f"Opened PR {result['pr_url']}")
+                    try:
+                        g.git(wt, "push", "-q", "-f", "origin", branch)
+                        base_b = base_branch or os.getenv("DOCDRIFT_BASE_BRANCH", "main")
+                        result["pr_url"] = _open_pr(*gh, branch, base_b, f"docs: DocDrift sync for {ctx.head[:7]}", body)
+                        ctx.emit(AGENT, f"Opened PR {result['pr_url']}")
+                    except Exception as e:  # push rejected, bad token, API down: keep the local branch
+                        result["pr_error"] = f"{e.__class__.__name__}: {e}"
+                        ctx.emit(AGENT, f"PR not opened ({result['pr_error']}); fixes are on local branch {branch}")
         finally:
             g.git(ctx.repo, "worktree", "remove", "--force", str(wt), check=False)
         result["branch"] = branch

@@ -48,7 +48,8 @@ for validated structured output). Also exposed as an **MCP server**.
 | How do agents communicate? | Typed Pydantic contracts in LangGraph state: `ChangeSet` → `ImpactReport` → `DocPatch` → `Verdict`. Verifier feedback loops back to the Fixer via a conditional edge. |
 | How is memory managed? | **Short-term:** LangGraph state for one run. **Long-term:** `.docdrift/memory.json` in the target repo: confirmed symbol→section links (boost recall next run), human-marked false positives (`docdrift ignore`), run log. Committed with the PR so CI learns too. |
 | Guardrails | Writes only `*.md` (never code, CI or its own memory); heading must be preserved; max changed lines per section; every patch must cite real code lines; new identifiers must exist in code (anti-hallucination); secret scan; doc content treated as data, and sections with prompt-injection text are excluded; LLM call budget; max sections per run; never auto-merges. |
-| Runs without babysitting? | Every LLM step has a deterministic fallback. No API key, rate limit or bad output → pipeline still completes. |
+| Runs without babysitting? | Every LLM step has a deterministic fallback. No API key, rate limit or bad output → pipeline still completes. A bad key stops Claude calls after the first failure; each call has a 60 s timeout. |
+| Error handling | Bounded everywhere: max 2 retries per section, 40 LLM calls and 25 sections per run, LangGraph `recursion_limit=25`. Bad repo path or commit → one-line `DocDrift error:` and exit 1 (MCP tools return the same text). A failed push or PR keeps the local branch and reports why. |
 
 ## Quickstart
 
@@ -99,15 +100,25 @@ Planted trap: the runbook's "rate **limit** of 100 requests" must **not** be tou
 - **Memory pollution:** memory linked bare default values like `50` to sections. Fixed: only identifiers are linked.
 - **mcp 2.x renamed `FastMCP` → `MCPServer`.** Server now supports both.
 
-## Tests
+## Test scenarios
 
 ```bash
-python -m pytest -q
+python -m pytest -q        # 16 tests
 ```
 
-Covers AST change detection, regex boundaries, chunking, guardrails, full deterministic run,
-docs-only no-op, the Verifier→Fixer retry loop (fake LLM hallucinates on attempt 1), and
-escalation to "needs human" after max retries.
+| # | Scenario | Expected | Test |
+|---|---|---|---|
+| 1 | Breaking API change merged, docs untouched | 7 stale sections fixed and verified | `test_end_to_end_deterministic` |
+| 2 | "rate limit" prose next to a renamed `limit` param | Left alone (false positive skipped) | `test_end_to_end_deterministic` |
+| 3 | Docs-only commit | No-op, nothing published | `test_docs_only_change_is_noop` |
+| 4 | Claude invents an identifier | Verifier rejects it, Fixer retries, passes | `test_verifier_sends_hallucination_back_to_fixer` |
+| 5 | A section can't be fixed | Escalated to "needs human" after 2 retries; rest still ships | `test_unfixable_section_goes_to_human` |
+| 6 | Claude down (outage / bad key) | Deterministic fallback, all 7 still fixed | `test_llm_outage_falls_back_to_deterministic` |
+| 7 | Doc contains "ignore previous instructions" | Section excluded from auto-fix, flagged for a human | `test_prompt_injection_section_is_never_auto_fixed` |
+| 8 | Wrong repo path / unknown commit | Clear error, exit 1, no traceback (CLI and MCP) | `test_bad_input_gives_clear_error_not_traceback`, `test_mcp_tool_returns_error_text` |
+| 9 | GitHub rejects the PR | Local branch kept, reason reported | `test_pr_failure_keeps_local_branch` |
+
+Plus unit tests for AST change detection, regex boundaries, chunking and guardrails.
 
 ## Layout
 

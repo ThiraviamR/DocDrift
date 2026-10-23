@@ -53,12 +53,16 @@ def main(argv: list[str] | None = None) -> int:
 
     from .run import run
 
-    if a.cmd == "demo":
-        subprocess.run(["bash", str(ROOT / "demo" / "setup_demo.sh"), a.dir], check=True)
-        subprocess.run(["bash", str(ROOT / "demo" / "make_change.sh"), a.dir], check=True)
-        res = run(a.dir, "HEAD~1", "HEAD", mode="apply", out=str(Path(a.dir) / ".docdrift" / "out"))
-    else:
-        res = run(a.repo, a.base, a.head, mode=a.mode, out=a.out, base_branch=a.base_branch)
+    try:
+        if a.cmd == "demo":
+            subprocess.run(["bash", str(ROOT / "demo" / "setup_demo.sh"), a.dir], check=True)
+            subprocess.run(["bash", str(ROOT / "demo" / "make_change.sh"), a.dir], check=True)
+            res = run(a.dir, "HEAD~1", "HEAD", mode="apply", out=str(Path(a.dir) / ".docdrift" / "out"))
+        else:
+            res = run(a.repo, a.base, a.head, mode=a.mode, out=a.out, base_branch=a.base_branch)
+    except (RuntimeError, OSError, subprocess.CalledProcessError) as e:
+        print(f"DocDrift error: {e}", file=sys.stderr)
+        return 1
 
     st = res["state"]
     v = st.get("verdicts", {})
@@ -69,6 +73,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Report: {res['report']}")
     if res.get("pr_url"):
         print(f"PR: {res['pr_url']}")
+    if res.get("pr_error"):
+        print(f"PR not opened: {res['pr_error']}", file=sys.stderr)
     return 0 if human == 0 else 2
 
 

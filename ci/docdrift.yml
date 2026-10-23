@@ -25,7 +25,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install DocDrift
-        run: pip install "git+https://github.com/${{ vars.DOCDRIFT_REPO || 'YOUR_GH_USER/DocDrift' }}.git"
+        run: pip install "git+https://github.com/${{ vars.DOCDRIFT_REPO || 'ThiraviamR/DocDrift' }}.git"
 
       - name: Run DocDrift
         env:

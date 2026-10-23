@@ -28,6 +28,7 @@ class Settings:
     max_retries: int = int(os.getenv("DOCDRIFT_MAX_RETRIES", "2"))
     impact_threshold: float = float(os.getenv("DOCDRIFT_IMPACT_THRESHOLD", "0.6"))
     max_changed_lines: int = int(os.getenv("DOCDRIFT_MAX_CHANGED_LINES", "40"))
+    llm_timeout: float = float(os.getenv("DOCDRIFT_LLM_TIMEOUT", "60"))
 
     doc_globs: tuple[str, ...] = ("*.md", "docs/**/*.md")
     code_globs: tuple[str, ...] = ("*.py",)

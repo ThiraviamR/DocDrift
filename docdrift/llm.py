@@ -29,11 +29,16 @@ class BudgetExceeded(RuntimeError):
 class LLM:
     def __init__(self) -> None:
         self.calls = 0
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.disabled_reason: str | None = None
         self._client = None
         if settings.use_llm:
             import anthropic
 
-            self._client = anthropic.Anthropic(api_key=settings.api_key)
+            # Bounded wait: a hung API call must never stall a run (SDK retries 429/5xx twice)
+            self._client = anthropic.Anthropic(api_key=settings.api_key, timeout=settings.llm_timeout,
+                                               max_retries=2)
 
     @property
     def available(self) -> bool:
@@ -52,14 +57,26 @@ class LLM:
         last_err: Exception | None = None
         for _ in range(2):
             self._spend()
-            resp = self._client.messages.create(
-                model=settings.model,
-                max_tokens=max_tokens,
-                system=GUARD_PREAMBLE + system,
-                tools=[tool],
-                tool_choice={"type": "tool", "name": "submit"},
-                messages=messages,
-            )
+            try:
+                resp = self._client.messages.create(
+                    model=settings.model,
+                    max_tokens=max_tokens,
+                    system=GUARD_PREAMBLE + system,
+                    tools=[tool],
+                    tool_choice={"type": "tool", "name": "submit"},
+                    messages=messages,
+                )
+            except Exception as e:
+                # Bad key / no access / unknown model won't fix itself: stop calling for the rest of
+                # the run so every agent goes straight to its deterministic path.
+                if e.__class__.__name__ in {"AuthenticationError", "PermissionDeniedError", "NotFoundError"}:
+                    self.disabled_reason = f"{e.__class__.__name__}: {e}"
+                    self._client = None
+                raise
+            usage = getattr(resp, "usage", None)
+            if usage is not None:
+                self.input_tokens += getattr(usage, "input_tokens", 0) or 0
+                self.output_tokens += getattr(usage, "output_tokens", 0) or 0
             block = next((b for b in resp.content if b.type == "tool_use"), None)
             if block is None:
                 last_err = RuntimeError("model returned no tool call")
