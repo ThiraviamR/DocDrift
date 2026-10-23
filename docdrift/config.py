@@ -18,7 +18,7 @@ def _env_bool(name: str, default: bool) -> bool:
 
 @dataclass
 class Settings:
-    model: str = field(default_factory=lambda: os.getenv("DOCDRIFT_MODEL", "claude-sonnet-4-5"))
+    model: str = field(default_factory=lambda: os.getenv("DOCDRIFT_MODEL", "claude-sonnet-5"))
     api_key: str | None = field(default_factory=lambda: os.getenv("ANTHROPIC_API_KEY"))
     force_mock: bool = field(default_factory=lambda: _env_bool("DOCDRIFT_MOCK", False))
 
