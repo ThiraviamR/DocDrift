@@ -6,9 +6,9 @@ Live Demo Day: **Oct 24**. Deck and PPT due: **Oct 22**. Talk limit: **under 10 
 
 - [ ] `pip install -r requirements.txt` on your Mac (Python 3.10 or later)
 - [ ] `cp .env.example .env` and add `ANTHROPIC_API_KEY`
-- [ ] `python -m docdrift demo` with Claude and confirm 7 fixed, 0 need human. If the model ID is rejected, set `DOCDRIFT_MODEL` to a current Claude model
-- [ ] Note the live-Claude run time and the number of LLM calls (both are in the report footer). Add them to the Results slide if you want
-- [ ] Note anything that broke in the live run and add it to the "What broke" slide notes
+- [x] `python -m docdrift demo` with Claude: 7 fixed, 0 need human (Oct 23, `claude-sonnet-5`, 16 calls, 51 s). If a model ID is ever rejected, set `DOCDRIFT_MODEL` in `.env`
+- [x] Live-run numbers are on the Results slide footer
+- [x] Live-run bug (retired default model name, handled by the fallback) is in the "What broke" notes
 - [ ] `python -m pytest -q` shows 16 passed
 - [ ] Make https://github.com/ThiraviamR/DocDrift public (Settings → Danger Zone → Change visibility) so reviewers can open it
 - [ ] Optional wow moment: on a test GitHub repo, run `--mode pr` once and screenshot the PR
@@ -50,7 +50,7 @@ clear
 **Set the scene (20 seconds):**
 "This is an Inventory API with a README, API guide and runbook. A developer just merged a change: `/v1/stock` is now `/v1/inventory`, `limit` is now `page_size` with a default of 50, `ttl_minutes` is now `hold_minutes`, and the database environment variable was renamed. Nobody touched the docs."
 
-**Run it:**
+**Run it** (about 50 seconds with Claude: narrate while it runs):
 
 ```bash
 python -m docdrift demo
@@ -90,7 +90,7 @@ cat .docdrift/memory.json | head -15                 # long-term memory
 - **Why a JSON file and not a vector database for memory?** It's small, versioned with the code, reviewable in the PR, and works in CI with no extra infrastructure. BM25 handles fuzzy matching.
 - **What about other languages?** The code reader is the only Python-specific part, and adding a TypeScript or Java one is a plug-in. Docs are any markdown.
 - **What stops it looping on its own PRs?** DocDrift's PRs change only docs, so the next run finds no code changes and stops. The Action also skips commits tagged `[docdrift]`.
-- **What does a run cost?** At most 40 Claude calls per run, enforced. [Fill in the actual count from your live run: it's in the report footer.]
+- **What does a run cost?** At most 40 Claude calls per run, enforced. The live demo run used 16 calls and about 32k tokens (28k in, 3.9k out), in 51 seconds: well under a dollar.
 - **What happens with a wrong fix?** The Verifier sends it back with the reasons. After 2 retries it's flagged "needs human" and left out of the PR's edits, while the rest still ships.
 - **Is it safe on private code?** It only reads git, it writes only markdown, and the GitHub token is used only for opening the PR.
 - **Where's the MCP part?** `python -m docdrift.mcp_server` exposes `check_docs`, `apply_doc_fixes` and `ignore_section` to Claude Desktop or Claude Code.
